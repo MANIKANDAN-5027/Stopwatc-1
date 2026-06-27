@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stopwatch App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0B0C10; --surface: #13141A; --card: #1A1C26;
+      --border: #2A2D3E; --purple: #7C3AED; --purple2: #A855F7;
+      --blue: #3B82F6; --gold: #F59E0B; --text: #F1F5F9; --muted: #64748B;
+    }
+    body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem 4rem; }
+    header { text-align: center; margin-bottom: 2.5rem; }
+    header h1 { font-family: 'JetBrains Mono', monospace; font-size: clamp(1.8rem, 5vw, 2.4rem); font-weight: 700; letter-spacing: -1px; background: linear-gradient(135deg, #fff 30%, var(--purple2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    header p { color: var(--muted); font-size: .88rem; margin-top: .4rem; }
+    .watch-card { background: var(--card); border: 1px solid var(--border); border-radius: 28px; padding: 2.5rem 2rem; width: 100%; max-width: 480px; box-shadow: 0 32px 80px rgba(0,0,0,.5); position: relative; overflow: hidden; }
+    .watch-card::before { content: ''; position: absolute; top: -60px; right: -60px; width: 200px; height: 200px; background: radial-gradient(circle, rgba(124,58,237,.18), transparent 70%); pointer-events: none; }
+    .watch-card::after { content: ''; position: absolute; bottom: -60px; left: -40px; width: 180px; height: 180px; background: radial-gradient(circle, rgba(59,130,246,.12), transparent 70%); pointer-events: none; }
+    .display-wrap { text-align: center; margin-bottom: 2rem; }
+    .display-label { font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: .8rem; }
+    .time-display { font-family: 'JetBrains Mono', monospace; font-size: clamp(3rem, 12vw, 5.5rem); font-weight: 700; letter-spacing: -2px; line-height: 1; color: var(--text); }
+    .time-display .ms { font-size: 45%; color: var(--purple2); letter-spacing: 0; vertical-align: baseline; }
+    .ring-wrap { display: flex; justify-content: center; margin: 1.2rem 0 1.8rem; }
+    .progress-ring { transform: rotate(-90deg); }
+    .progress-ring__bg { fill: none; stroke: var(--border); stroke-width: 4; }
+    .progress-ring__fill { fill: none; stroke: url(#grad); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 283; stroke-dashoffset: 283; transition: stroke-dashoffset .1s linear; }
+    .status-row { display: flex; align-items: center; justify-content: center; gap: .5rem; margin-bottom: .5rem; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transition: background .3s; }
+    .status-dot.running { background: #22C55E; box-shadow: 0 0 8px #22C55E; animation: pulse 1s infinite; }
+    .status-dot.paused { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .status-text { font-size: .8rem; color: var(--muted); font-weight: 500; }
+    .btn-row { display: flex; gap: .75rem; justify-content: center; margin-bottom: 1.5rem; }
+    .btn { flex: 1; max-width: 130px; padding: .85rem; border: none; border-radius: 14px; font-family: 'Space Grotesk', sans-serif; font-size: .9rem; font-weight: 700; cursor: pointer; transition: all .18s; }
+    .btn:active { transform: scale(.96); }
+    .btn-start { background: linear-gradient(135deg, var(--purple), var(--blue)); color: #fff; box-shadow: 0 8px 24px rgba(124,58,237,.35); }
+    .btn-start:hover { box-shadow: 0 12px 32px rgba(124,58,237,.5); transform: translateY(-2px); }
+    .btn-stop { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.35); color: #F87171; }
+    .btn-stop:hover { background: rgba(239,68,68,.22); transform: translateY(-2px); }
+    .btn-lap { background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.3); color: var(--gold); }
+    .btn-lap:hover { background: rgba(245,158,11,.2); transform: translateY(-2px); }
+    .btn-lap:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+    .btn-reset { background: rgba(100,116,139,.1); border: 1px solid var(--border); color: var(--muted); }
+    .btn-reset:hover { background: rgba(100,116,139,.2); color: var(--text); transform: translateY(-2px); }
+    .lap-section { border-top: 1px solid var(--border); padding-top: 1.25rem; }
+    .lap-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: .85rem; }
+    .lap-title { font-size: .78rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .lap-count { font-family: 'JetBrains Mono', monospace; font-size: .75rem; background: rgba(124,58,237,.15); color: var(--purple2); padding: .2rem .6rem; border-radius: 20px; border: 1px solid rgba(124,58,237,.25); }
+    .lap-list { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: .4rem; padding-right: 2px; }
+    .lap-list::-webkit-scrollbar { width: 4px; }
+    .lap-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .lap-item { display: flex; justify-content: space-between; align-items: center; padding: .65rem 1rem; border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: .85rem; border: 1px solid var(--border); animation: slideIn .2s ease; }
+    @keyframes slideIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+    .lap-item:nth-child(odd) { background: var(--surface); }
+    .lap-item:nth-child(even) { background: #151720; }
+    .lap-item.best { border-color: rgba(34,197,94,.4); background: rgba(34,197,94,.06); }
+    .lap-item.worst { border-color: rgba(239,68,68,.3); background: rgba(239,68,68,.05); }
+    .lap-num { color: var(--muted); font-size: .78rem; }
+    .lap-time { color: var(--text); font-weight: 600; }
+    .lap-diff { font-size: .75rem; }
+    .lap-diff.pos { color: #F87171; }
+    .lap-diff.neg { color: #4ADE80; }
+    .lap-badge { font-size: .65rem; font-weight: 700; padding: .15rem .45rem; border-radius: 4px; }
+    .badge-best { background: rgba(34,197,94,.15); color: #4ADE80; }
+    .badge-worst { background: rgba(239,68,68,.12); color: #F87171; }
+    .empty-laps { text-align: center; color: var(--muted); font-size: .85rem; padding: 1.5rem 0; }
+    .kbd-hint { text-align: center; margin-top: 1.5rem; font-size: .75rem; color: var(--muted); display: flex; justify-content: center; gap: 1.2rem; flex-wrap: wrap; }
+    .kbd { display: inline-flex; align-items: center; gap: .35rem; }
+    .key { background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: .15rem .45rem; font-family: 'JetBrains Mono', monospace; font-size: .7rem; color: var(--text); }
+
+    /* ABOUT SECTION */
+    .about-section { width: 100%; max-width: 480px; margin-top: 2rem; background: var(--card); border: 1px solid var(--border); border-radius: 24px; overflow: hidden; }
+    .about-toggle { width: 100%; padding: 1.1rem 1.5rem; background: none; border: none; color: var(--text); font-family: 'Space Grotesk', sans-serif; font-size: .95rem; font-weight: 700; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+    .about-toggle:hover { background: rgba(255,255,255,.03); }
+    .toggle-icon { font-size: .8rem; color: var(--purple2); transition: transform .3s; }
+    .about-body { display: none; padding: 0 1.5rem 1.5rem; border-top: 1px solid var(--border); }
+    .about-body.open { display: block; }
+    .about-label { font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--purple2); margin: 1.2rem 0 .6rem; }
+    .about-desc { font-size: .88rem; color: var(--muted); line-height: 1.75; }
+    .feature-list { list-style: none; display: flex; flex-direction: column; gap: .45rem; }
+    .feature-list li { font-size: .88rem; color: var(--muted); display: flex; align-items: flex-start; gap: .5rem; line-height: 1.5; }
+    .feature-list li::before { content: '▸'; color: var(--purple2); flex-shrink: 0; margin-top: .05rem; }
+    .concept-tags { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .concept-tag { font-family: 'JetBrains Mono', monospace; font-size: .72rem; color: var(--purple2); background: rgba(124,58,237,.12); border: 1px solid rgba(124,58,237,.25); padding: .25rem .65rem; border-radius: 6px; }
+
+    @media (max-width: 400px) { .watch-card { padding: 1.75rem 1.25rem; } .btn { font-size: .8rem; padding: .75rem .5rem; } }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⏱ Stopwatch</h1>
+  <p>Start · Pause · Lap · Reset</p>
+</header>
+
+<div class="watch-card">
+  <div class="display-wrap">
+    <div class="display-label">Elapsed Time</div>
+    <div class="time-display" id="display">00:00<span class="ms" id="ms-display">.00</span></div>
+    <div class="ring-wrap">
+      <svg class="progress-ring" width="96" height="96" viewBox="0 0 96 96">
+        <defs>
+          <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#7C3AED"/>
+            <stop offset="100%" stop-color="#3B82F6"/>
+          </linearGradient>
+        </defs>
+        <circle class="progress-ring__bg" cx="48" cy="48" r="45"/>
+        <circle class="progress-ring__fill" id="ring" cx="48" cy="48" r="45"/>
+      </svg>
+    </div>
+    <div class="status-row">
+      <div class="status-dot" id="status-dot"></div>
+      <span class="status-text" id="status-text">Ready</span>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-start" id="btn-start" onclick="handleStart()">▶ Start</button>
+    <button class="btn btn-stop" id="btn-stop" onclick="handleStop()" disabled>⏸ Pause</button>
+    <button class="btn btn-lap" id="btn-lap" onclick="handleLap()" disabled>⊕ Lap</button>
+    <button class="btn btn-reset" onclick="handleReset()">↺ Reset</button>
+  </div>
+  <div class="lap-section">
+    <div class="lap-header">
+      <span class="lap-title">Lap Times</span>
+      <span class="lap-count" id="lap-count">0 laps</span>
+    </div>
+    <div class="lap-list" id="lap-list">
+      <div class="empty-laps">No laps recorded yet.</div>
+    </div>
+  </div>
+</div>
+
+<div class="kbd-hint">
+  <span class="kbd"><span class="key">Space</span> Start / Pause</span>
+  <span class="kbd"><span class="key">L</span> Lap</span>
+  <span class="kbd"><span class="key">R</span> Reset</span>
+</div>
+
+<!-- ABOUT SECTION -->
+<div class="about-section">
+  <button class="about-toggle" onclick="toggleAbout()">
+    <span>📖 About This Project</span>
+    <span class="toggle-icon" id="toggle-icon">▼</span>
+  </button>
+  <div class="about-body" id="about-body">
+    <div class="about-label">Project Overview</div>
+    <p class="about-desc">A fully functional Stopwatch Web Application built using HTML, CSS, and JavaScript. It accurately measures and records time intervals with millisecond precision, supporting lap tracking and real-time display updates.</p>
+
+    <div class="about-label">✨ Features</div>
+    <ul class="feature-list">
+      <li>Start, Pause, and Resume timer with accurate millisecond precision</li>
+      <li>Lap recording — saves individual split times for each lap</li>
+      <li>Best lap highlighted in green, slowest lap in red automatically</li>
+      <li>+/− difference shown comparing each lap to the previous one</li>
+      <li>Animated SVG progress ring — fills every 60 seconds visually</li>
+      <li>Live status indicator — green pulse when running, yellow when paused</li>
+      <li>Reset clears all laps and returns timer to zero</li>
+      <li>Keyboard shortcuts — Space (Start/Pause), L (Lap), R (Reset)</li>
+      <li>Fully responsive — works on mobile and desktop screens</li>
+    </ul>
+
+    <div class="about-label">🎨 Design</div>
+    <ul class="feature-list">
+      <li>Dark theme with purple and blue gradient color scheme</li>
+      <li>JetBrains Mono monospace font for timer display — clean and readable</li>
+      <li>Glowing buttons with hover and active animations</li>
+      <li>Smooth slide-in animation for each new lap entry</li>
+      <li>CSS variables used for consistent theming throughout</li>
+    </ul>
+
+    <div class="about-label">💡 Key Concepts Used</div>
+    <div class="concept-tags">
+      <span class="concept-tag">setInterval</span>
+      <span class="concept-tag">clearInterval</span>
+      <span class="concept-tag">Date.now()</span>
+      <span class="concept-tag">SVG Animation</span>
+      <span class="concept-tag">DOM Manipulation</span>
+      <span class="concept-tag">CSS Keyframes</span>
+      <span class="concept-tag">Array Methods</span>
+      <span class="concept-tag">Event Listeners</span>
+      <span class="concept-tag">Responsive CSS</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  let startTime = 0, elapsed = 0, timerID = null, running = false, laps = [], lastLapAt = 0;
+  const display = document.getElementById('display');
+  const msDisplay = document.getElementById('ms-display');
+  const ring = document.getElementById('ring');
+  const statusDot = document.getElementById('status-dot');
+  const statusText = document.getElementById('status-text');
+  const lapList = document.getElementById('lap-list');
+  const lapCount = document.getElementById('lap-count');
+  const btnStart = document.getElementById('btn-start');
+  const btnStop = document.getElementById('btn-stop');
+  const btnLap = document.getElementById('btn-lap');
+  const RING_CIRC = 2 * Math.PI * 45;
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function formatTime(ms) { const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000),s=Math.floor((ms%60000)/1000); return h>0?`${pad(h)}:${pad(m)}:${pad(s)}`:`${pad(m)}:${pad(s)}`; }
+  function formatMS(ms) { return '.'+pad(Math.floor((ms%1000)/10)); }
+  function updateRing(ms) { ring.style.strokeDashoffset = RING_CIRC*(1-(ms%60000)/60000); }
+  function tick() { elapsed=Date.now()-startTime; display.childNodes[0].textContent=formatTime(elapsed); msDisplay.textContent=formatMS(elapsed); updateRing(elapsed); }
+  function setStatus(state) { statusDot.className='status-dot '+state; statusText.textContent=state==='running'?'Running':state==='paused'?'Paused':'Ready'; }
+  function handleStart() { if(running)return; startTime=Date.now()-elapsed; timerID=setInterval(tick,10); running=true; btnStart.textContent='▶ Running'; btnStart.disabled=true; btnStop.disabled=false; btnLap.disabled=false; setStatus('running'); }
+  function handleStop() { if(!running)return; clearInterval(timerID); running=false; btnStart.textContent='▶ Resume'; btnStart.disabled=false; btnStop.disabled=true; btnLap.disabled=true; setStatus('paused'); }
+  function handleLap() { if(!running)return; laps.unshift({total:elapsed,lap:elapsed-lastLapAt}); lastLapAt=elapsed; renderLaps(); }
+  function handleReset() { clearInterval(timerID); running=false; elapsed=0; lastLapAt=0; laps=[]; display.childNodes[0].textContent='00:00'; msDisplay.textContent='.00'; ring.style.strokeDashoffset=RING_CIRC; btnStart.textContent='▶ Start'; btnStart.disabled=false; btnStop.disabled=true; btnLap.disabled=true; setStatus(''); lapCount.textContent='0 laps'; lapList.innerHTML='<div class="empty-laps">No laps recorded yet.</div>'; }
+  function renderLaps() {
+    lapCount.textContent=laps.length+(laps.length===1?' lap':' laps');
+    const times=laps.map(l=>l.lap), best=Math.min(...times), worst=Math.max(...times);
+    lapList.innerHTML=laps.map((l,i)=>{
+      const isBest=laps.length>1&&l.lap===best, isWorst=laps.length>1&&l.lap===worst;
+      const badge=isBest?'<span class="lap-badge badge-best">BEST</span>':isWorst?'<span class="lap-badge badge-worst">SLOW</span>':'';
+      let diffHtml='';
+      if(i<laps.length-1){const diff=l.lap-laps[i+1].lap; diffHtml=`<span class="lap-diff ${diff>=0?'pos':'neg'}">${diff>=0?'+':'−'}${formatTime(Math.abs(diff))}${formatMS(Math.abs(diff))}</span>`;}
+      return `<div class="lap-item ${isBest?'best':isWorst?'worst':''}"><span class="lap-num">Lap ${laps.length-i}</span><span class="lap-time">${formatTime(l.lap)}${formatMS(l.lap)}</span><span>${diffHtml}${badge}</span></div>`;
+    }).join('');
+  }
+  function toggleAbout() {
+    const body=document.getElementById('about-body'), icon=document.getElementById('toggle-icon');
+    body.classList.toggle('open'); icon.textContent=body.classList.contains('open')?'▲':'▼';
+  }
+  document.addEventListener('keydown', e=>{
+    if(e.code==='Space'){e.preventDefault(); running?handleStop():handleStart();}
+    if(e.code==='KeyL'&&running)handleLap();
+    if(e.code==='KeyR')handleReset();
+  });
+  ring.style.strokeDashoffset=RING_CIRC;
+</script>
+</body>
+</html>
